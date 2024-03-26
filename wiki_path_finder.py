@@ -43,18 +43,25 @@ class WikiPathFinder:
         return text
 
     @staticmethod
-    def _get_links_from_page(soup) -> map:
+    def _get_links_from_page(soup) -> tuple:
         """
         Gets a list of links from wikipedia using requests library and returns a list of links
         :param soup: bs4 object
         :return: map object
         """
-        data = soup.find_all("a", {"class": "",
-                                   "accesskey": ""},
-                             href=re.compile(r"^/wiki/[^:]+$"))
-        data = filter(lambda tag: tag.parent.name == "p", data)
-        data = map(lambda tag: "https://ru.wikipedia.org" + tag["href"], data)
-        return data
+
+        for table in soup.find_all("table"):
+            table.decompose()
+
+        data = soup.find_all("a", {"accesskey": ""},
+                             href=re.compile(r"^/wiki/[^:]+$"),
+                             class_=(lambda x: x is None or "mw-redirect" in x))
+
+        links = tuple(filter(lambda tag: tag.parent.name == "p", data))
+        if len(links) == 0:
+            links = filter(lambda tag: tag.parent.name == "li", data)
+        links = map(lambda tag: "https://ru.wikipedia.org" + tag["href"], links)
+        return tuple(links)
 
     @staticmethod
     def _get_title_from_page(soup) -> [str, None]:
@@ -81,7 +88,7 @@ class WikiPathFinder:
             text = self._get_text_without_brackets(text)
             soup = bs(text, "html.parser")
             links = self._get_links_from_page(soup)
-            print(self._get_title_from_page(soup))
+            print(self._get_title_from_page(soup), link)
             for index, next_link in enumerate(links):
                 if next_link not in self.visited:
                     self.visited.append(next_link)
@@ -95,4 +102,3 @@ class WikiPathFinder:
         :return: None
         """
         self._find(self.source)
-
